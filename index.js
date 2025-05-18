@@ -74,10 +74,39 @@ app.get('/callback', async (req, res) => {
         });
 
         const { access_token, refresh_token } = response.data;
-        
-        console.log("Tokens received:", { access_token, refresh_token });
-        
-        // Send the tokens as query parameters to the frontend
+
+        // Get the user profile to save their info
+        const userProfile = await axios.get('https://api.spotify.com/v1/me', {
+            headers: {
+                Authorization: `Bearer ${access_token}`
+            }
+        });
+
+        const { id, display_name, images } = userProfile.data;
+
+        // Save the user to users.json
+        let users = [];
+        if (fs.existsSync(USERS_FILE)) {
+            users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+        }
+
+        // Check if the user already exists
+        const existingUser = users.find(user => user.spotifyId === id);
+        if (!existingUser) {
+            users.push({
+                spotifyId: id,
+                displayName: display_name || id,
+                accessToken: access_token,
+                refreshToken: refresh_token,
+                profileImage: images[0]?.url || ""
+            });
+            fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+            console.log(`User ${display_name || id} added.`);
+        } else {
+            console.log(`User ${display_name || id} already exists.`);
+        }
+
+        // Redirect to frontend
         res.redirect(`${FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
     } catch (error) {
         console.error("Error exchanging code for tokens:", error.response?.data || error.message);
