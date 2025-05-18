@@ -226,7 +226,10 @@ app.get('/api/users', (req, res) => {
         const users = JSON.parse(fs.readFileSync('./users.json', 'utf8'));
         res.json(users.map(user => ({
             id: user.spotifyId,
-            name: user.displayName || user.spotifyId
+            name: user.displayName,
+            accessToken: user.accessToken,
+            refreshToken: user.refreshToken,
+            profileImage: user.profileImage
         })));
     } catch (error) {
         console.error("Error reading users:", error);
