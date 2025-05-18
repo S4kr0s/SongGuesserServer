@@ -34,15 +34,25 @@ function saveUsers(users) {
 
 // Redirect to Spotify Login
 app.get('/login', (req, res) => {
-    const scope = 'user-read-private user-read-email user-top-read user-read-playback-state user-modify-playback-state streaming';
+    const scopes = [
+        'user-read-private',
+        'user-read-email',
+        'user-top-read',
+        'user-read-playback-state',
+        'user-modify-playback-state'
+    ].join(' ');
+
     const params = querystring.stringify({
+        client_id: process.env.SPOTIFY_CLIENT_ID,
         response_type: 'code',
-        client_id: CLIENT_ID,
-        scope,
-        redirect_uri: REDIRECT_URI,
-        state: 'some-random-string'
+        redirect_uri: process.env.REDIRECT_URI,
+        scope: scopes
     });
-    res.redirect(`https://accounts.spotify.com/authorize?${params}`);
+
+    const loginUrl = `https://accounts.spotify.com/authorize?${params}`;
+    
+    console.log("Redirecting to:", loginUrl);
+    res.redirect(loginUrl);
 });
 
 // Spotify Callback
