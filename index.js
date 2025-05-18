@@ -223,12 +223,10 @@ app.post('/api/create-pool', async (req, res) => {
                     weight: 0.3  // Lower weight for recently played
                 }));
 
-                // Merge and limit to 50 unique tracks
                 const combinedTracks = [...topTracks, ...recentTracks]
                     .filter((track, index, self) =>
                         self.findIndex(t => t.id === track.id) === index
                     )
-                    .sort(() => 0.5 - Math.random())
                     .slice(0, 50);
 
                 console.log(`Selected ${combinedTracks.length} tracks for user: ${user.displayName}`);
@@ -238,46 +236,22 @@ app.post('/api/create-pool', async (req, res) => {
             }
         }
 
-        // Cross-user filtering and weighting
-        if (users.length > 1) {
-            const trackCounts = {};
-
-            // Count how many users have listened to each track
-            allTracks.forEach(track => {
-                trackCounts[track.id] = (trackCounts[track.id] || 0) + 1;
-            });
-
-            // Assign a weight based on popularity
-            allTracks = allTracks.map(track => ({
-                ...track,
-                weight: track.weight * (1 / trackCounts[track.id])  // Less popular songs get higher weights
-            }));
-
-            // Remove duplicates and shuffle with weights
-            const uniqueTracks = allTracks.filter((track, index, self) =>
-                self.findIndex(t => t.id === track.id) === index
-            );
-
-            // Weighted random shuffle
-            const weightedTracks = [];
-            uniqueTracks.forEach(track => {
-                const copies = Math.round(track.weight * 10);
-                for (let i = 0; i < copies; i++) {
-                    weightedTracks.push(track);
-                }
-            });
-
-            // Final shuffle
-            allTracks = weightedTracks.sort(() => 0.5 - Math.random());
+        if (allTracks.length === 0) {
+            console.error("No tracks found for any users");
+            return res.status(404).json({ error: 'No tracks found for any users' });
         }
 
-        console.log(`Created song pool with ${allTracks.length} tracks`);
-        res.json(allTracks);
+        // Shuffle the final list
+        const shuffledTracks = allTracks.sort(() => 0.5 - Math.random());
+
+        console.log(`Created song pool with ${shuffledTracks.length} tracks`);
+        res.json(shuffledTracks);
     } catch (error) {
         console.error('Error creating song pool:', error);
         res.status(500).json({ error: 'Error creating song pool' });
     }
 });
+
 
 app.get('/api/users', (req, res) => {
     try {
