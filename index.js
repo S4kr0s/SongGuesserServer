@@ -12,8 +12,11 @@ app.use(cors({
     origin: [
         'http://localhost:3000',
         'https://songguesserserver.onrender.com/callback'
-    ]
+    ],
+    methods: 'GET,POST,PUT,DELETE',
+    allowedHeaders: 'Content-Type,Authorization'
 }));
+
 app.use(express.json());
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -185,7 +188,10 @@ app.post('/create-pool', async (req, res) => {
 app.get('/api/users', (req, res) => {
     try {
         const users = JSON.parse(fs.readFileSync('./users.json', 'utf8'));
-        res.json(users);
+        res.json(users.map(user => ({
+            id: user.spotifyId,
+            name: user.displayName || user.spotifyId
+        })));
     } catch (error) {
         console.error("Error reading users:", error);
         res.status(500).json({ error: 'Failed to fetch users' });
