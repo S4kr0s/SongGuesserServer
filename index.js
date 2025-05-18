@@ -161,7 +161,7 @@ app.get('/top-tracks/:spotifyId', async (req, res) => {
 });
 
 // Create a song pool from selected users
-app.post('/create-pool', async (req, res) => {
+app.post('/api/create-pool', async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
         console.error("No valid user IDs received");
@@ -237,6 +237,7 @@ app.get('/api/users', (req, res) => {
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
+
 
 app.listen(5000, () => {
     console.log('🚀 Server is running on port 5000');
