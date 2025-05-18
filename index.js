@@ -163,6 +163,7 @@ app.get('/top-tracks/:spotifyId', async (req, res) => {
 // Create a song pool from selected users
 app.post('/api/create-pool', async (req, res) => {
     const { userIds } = req.body;
+
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
         console.error("No valid user IDs received");
         return res.status(400).json({ error: 'No valid users found' });
@@ -178,16 +179,16 @@ app.post('/api/create-pool', async (req, res) => {
     try {
         let allTracks = [];
 
-        // Fetch top tracks for each user
         for (const user of users) {
             console.log(`Fetching tracks for user: ${user.displayName}`);
             try {
+                // Fetch top tracks for the user
                 const response = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
                     headers: {
                         Authorization: `Bearer ${user.accessToken}`
                     },
                     params: {
-                        limit: 100,
+                        limit: 50,
                         time_range: 'medium_term'
                     }
                 });
@@ -203,7 +204,23 @@ app.post('/api/create-pool', async (req, res) => {
                 console.log(`Fetched ${tracks.length} tracks for user: ${user.displayName}`);
                 allTracks.push(...tracks);
             } catch (error) {
-                console.error(`Error fetching top tracks for user ${user.displayName}:`, error.response?.data || error.message);
+                const status = error.response?.status;
+                
+                // Handle expired tokens
+                if (status === 401) {
+                    console.warn(`Access token expired for user: ${user.displayName}, attempting to refresh...`);
+                    const newToken = await refreshAccessToken(user);
+                    
+                    if (newToken) {
+                        user.accessToken = newToken;
+                        saveUsers(users);
+                        console.log(`Refetched tracks for user: ${user.displayName} after refreshing token.`);
+                    } else {
+                        console.error(`Failed to refresh token for user: ${user.displayName}`);
+                    }
+                } else {
+                    console.error(`Error fetching top tracks for user ${user.displayName}:`, error.response?.data || error.message);
+                }
             }
         }
 
@@ -214,7 +231,6 @@ app.post('/api/create-pool', async (req, res) => {
         const shuffledTracks = uniqueTracks.sort(() => 0.5 - Math.random());
 
         console.log(`Created song pool with ${shuffledTracks.length} tracks`);
-
         res.json(shuffledTracks);
     } catch (error) {
         console.error('Error creating song pool:', error);
