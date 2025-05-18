@@ -5,18 +5,16 @@ const axios = require('axios');
 const querystring = require('querystring');
 const fs = require('fs');
 const path = require('path');
+const bodyParser = require('body-parser');
 
 dotenv.config();
 const app = express();
 app.use(cors({
-    origin: [
-        'http://localhost:3000',
-        'https://songguesserserver.onrender.com/callback'
-    ],
+    origin: '*', // Allow all origins (or specify exact origins)
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Content-Type,Authorization'
 }));
-
+app.use(bodyParser.json());
 app.use(express.json());
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
