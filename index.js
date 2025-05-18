@@ -8,13 +8,18 @@ const path = require('path');
 
 dotenv.config();
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:3000',
+        'https://songguesserserver.onrender.com/callback'
+    ]
+}));
 app.use(express.json());
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = 'http://127.0.0.1:5000/callback';
-const FRONTEND_URI = 'http://127.0.0.1:3000';
+const REDIRECT_URI = 'https://songguesserserver.onrender.com/callback';
+const FRONTEND_URI = 'https://song-guesser-client.vercel.app';
 const USERS_FILE = path.join(__dirname, 'users.json');
 
 // Read users from the JSON file
