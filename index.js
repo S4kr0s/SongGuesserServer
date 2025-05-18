@@ -16,10 +16,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = 'https://songguesserserver.onrender.com/callback';
-const FRONTEND_URI = 'https://song-guesser-client.vercel.app';
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI;
+const FRONTEND_URI = process.env.FRONTEND_URI;
 const USERS_FILE = path.join(__dirname, 'users.json');
 
 // Read users from the JSON file
@@ -47,63 +47,31 @@ app.get('/login', (req, res) => {
 
 // Spotify Callback
 app.get('/callback', async (req, res) => {
-    const code = req.query.code || null;
+    const code = req.query.code;
 
     try {
-        const response = await axios.post('https://accounts.spotify.com/api/token', querystring.stringify({
-            grant_type: 'authorization_code',
-            code,
-            redirect_uri: REDIRECT_URI,
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET
-        }), {
+        const response = await axios.post('https://accounts.spotify.com/api/token', null, {
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Authorization: 'Basic ' + Buffer.from(SPOTIFY_CLIENT_ID + ':' + SPOTIFY_CLIENT_SECRET).toString('base64')
+            },
+            params: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: REDIRECT_URI
+            })
         });
 
         const { access_token, refresh_token } = response.data;
-
-        // Fetch User Profile
-        const userResponse = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${access_token}` }
-        });
-
-        const { id, display_name, images } = userResponse.data;
-        const profileImage = images.length ? images[0].url : '';
-
-        // Save to JSON
-        let users = readUsers();
-        const userIndex = users.findIndex(user => user.spotifyId === id);
-
-        if (userIndex === -1) {
-            users.push({
-                spotifyId: id,
-                displayName: display_name,
-                accessToken: access_token,
-                refreshToken: refresh_token,
-                profileImage: profileImage
-            });
-        } else {
-            users[userIndex].accessToken = access_token;
-            users[userIndex].refreshToken = refresh_token;
-            users[userIndex].displayName = display_name;
-            users[userIndex].profileImage = profileImage;
-        }
-
-        saveUsers(users);
-
-        // Redirect back to the frontend with access token
-        res.redirect(`${FRONTEND_URI}/dashboard?token=${access_token}`);
+        
+        console.log("Tokens received:", { access_token, refresh_token });
+        
+        // Send the tokens as query parameters to the frontend
+        res.redirect(`${FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
     } catch (error) {
-        console.error('Error exchanging code for tokens:', error);
-        res.send('Error exchanging code for tokens.');
+        console.error("Error exchanging code for tokens:", error.response?.data || error.message);
+        res.status(500).send("Error exchanging code for tokens.");
     }
-});
-
-// Get All Users
-app.get('/users', (req, res) => {
-    res.json(readUsers());
 });
 
 // Fetch a user's top tracks
