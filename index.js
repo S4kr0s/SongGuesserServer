@@ -40,7 +40,8 @@ app.get('/login', (req, res) => {
         'user-read-email',
         'user-top-read',
         'user-read-playback-state',
-        'user-modify-playback-state'
+        'user-modify-playback-state',
+        'streaming'
     ].join(' ');
 
     const params = querystring.stringify({
