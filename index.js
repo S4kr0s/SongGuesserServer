@@ -187,7 +187,7 @@ app.post('/create-pool', async (req, res) => {
                         Authorization: `Bearer ${user.accessToken}`
                     },
                     params: {
-                        limit: 50,
+                        limit: 100,
                         time_range: 'medium_term'
                     }
                 });
@@ -237,50 +237,6 @@ app.get('/api/users', (req, res) => {
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
-
-app.post('/api/create-pool', async (req, res) => {
-    try {
-        const { userIds } = req.body;
-        
-        if (!userIds || userIds.length === 0) {
-            return res.status(400).json({ error: 'No users selected' });
-        }
-
-        // Load user tokens from the JSON file
-        const users = JSON.parse(fs.readFileSync('./users.json', 'utf8'));
-        const selectedUsers = users.filter(user => userIds.includes(user.spotifyId));
-
-        // Fetch tracks for each selected user
-        const trackPromises = selectedUsers.map(async user => {
-            const token = user.accessToken;
-            const response = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                params: {
-                    limit: 20,
-                    time_range: 'medium_term'
-                }
-            });
-
-            return response.data.items.map(track => ({
-                uri: track.uri,
-                artist: track.artists.map(artist => artist.name).join(", "),
-                name: track.name,
-                albumCover: track.album.images[0]?.url || ""
-            }));
-        });
-
-        // Flatten the track lists
-        const allTracks = (await Promise.all(trackPromises)).flat();
-
-        res.json(allTracks);
-    } catch (error) {
-        console.error("Error creating pool:", error);
-        res.status(500).json({ error: 'Failed to create pool' });
-    }
-});
-
 
 app.listen(5000, () => {
     console.log('🚀 Server is running on port 5000');
