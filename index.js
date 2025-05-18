@@ -64,12 +64,12 @@ app.get('/callback', async (req, res) => {
         const response = await axios.post('https://accounts.spotify.com/api/token', null, {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                Authorization: 'Basic ' + Buffer.from(SPOTIFY_CLIENT_ID + ':' + SPOTIFY_CLIENT_SECRET).toString('base64')
+                Authorization: 'Basic ' + Buffer.from(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64')
             },
             params: new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: REDIRECT_URI
+                redirect_uri: process.env.REDIRECT_URI
             })
         });
 
@@ -84,30 +84,39 @@ app.get('/callback', async (req, res) => {
 
         const { id, display_name, images } = userProfile.data;
 
-        // Save the user to users.json
+        // Load existing users
         let users = [];
         if (fs.existsSync(USERS_FILE)) {
             users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
         }
 
         // Check if the user already exists
-        const existingUser = users.find(user => user.spotifyId === id);
-        if (!existingUser) {
-            users.push({
+        let user = users.find(user => user.spotifyId === id);
+
+        if (!user) {
+            // New user
+            user = {
                 spotifyId: id,
                 displayName: display_name || id,
                 accessToken: access_token,
                 refreshToken: refresh_token,
                 profileImage: images[0]?.url || ""
-            });
-            fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-            console.log(`User ${display_name || id} added.`);
+            };
+            users.push(user);
+            console.log(`New user added: ${display_name || id}`);
         } else {
-            console.log(`User ${display_name || id} already exists.`);
+            // Update existing user
+            user.accessToken = access_token;
+            user.refreshToken = refresh_token;
+            user.profileImage = images[0]?.url || "";
+            console.log(`User updated: ${display_name || id}`);
         }
 
+        // Save the updated user list
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+
         // Redirect to frontend
-        res.redirect(`${FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
+        res.redirect(`${process.env.FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
     } catch (error) {
         console.error("Error exchanging code for tokens:", error.response?.data || error.message);
         res.status(500).send("Error exchanging code for tokens.");
