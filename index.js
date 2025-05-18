@@ -179,12 +179,11 @@ app.post('/api/create-pool', async (req, res) => {
     try {
         let allTracks = [];
 
-        // Fetch tracks for each selected user
         for (const user of users) {
             console.log(`Fetching tracks for user: ${user.displayName}`);
 
             try {
-                // Fetch top 50 medium-term tracks (weight 70%)
+                // Fetch top 50 medium-term tracks
                 const topTracksResponse = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
                     headers: {
                         Authorization: `Bearer ${user.accessToken}`
@@ -201,10 +200,10 @@ app.post('/api/create-pool', async (req, res) => {
                     artist: track.artists.map(a => a.name).join(', '),
                     albumCover: track.album.images[0]?.url || 'https://via.placeholder.com/150',
                     uri: track.uri,
-                    weight: 0.7  // Higher weight for top tracks
+                    weight: 0.7
                 }));
 
-                // Fetch 30 recently played tracks (weight 30%)
+                // Fetch 30 recently played tracks
                 const recentTracksResponse = await axios.get('https://api.spotify.com/v1/me/player/recently-played', {
                     headers: {
                         Authorization: `Bearer ${user.accessToken}`
@@ -220,9 +219,10 @@ app.post('/api/create-pool', async (req, res) => {
                     artist: item.track.artists.map(a => a.name).join(', '),
                     albumCover: item.track.album.images[0]?.url || 'https://via.placeholder.com/150',
                     uri: item.track.uri,
-                    weight: 0.3  // Lower weight for recently played
+                    weight: 0.3
                 }));
 
+                // Combine, remove duplicates, and limit to 50
                 const combinedTracks = [...topTracks, ...recentTracks]
                     .filter((track, index, self) =>
                         self.findIndex(t => t.id === track.id) === index
@@ -241,7 +241,7 @@ app.post('/api/create-pool', async (req, res) => {
             return res.status(404).json({ error: 'No tracks found for any users' });
         }
 
-        // Shuffle the final list
+        // Final shuffle
         const shuffledTracks = allTracks.sort(() => 0.5 - Math.random());
 
         console.log(`Created song pool with ${shuffledTracks.length} tracks`);
@@ -251,6 +251,7 @@ app.post('/api/create-pool', async (req, res) => {
         res.status(500).json({ error: 'Error creating song pool' });
     }
 });
+
 
 
 app.get('/api/users', (req, res) => {
