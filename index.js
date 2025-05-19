@@ -181,13 +181,14 @@ app.post('/api/create-pool', async (req, res) => {
     }
 
     try {
-        let allTracks = [];
-
+        const userTracks = {};
+        
         for (const user of users) {
             console.log(`Fetching tracks for user: ${user.displayName}`);
+
             try {
-                // Fetch top tracks for the user
-                const response = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
+                // Fetch top 50 medium-term tracks
+                const mediumTermResponse = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
                     headers: {
                         Authorization: `Bearer ${user.accessToken}`
                     },
@@ -197,45 +198,64 @@ app.post('/api/create-pool', async (req, res) => {
                     }
                 });
 
-                const tracks = response.data.items.map(track => ({
+                const mediumTermTracks = mediumTermResponse.data.items.map(track => ({
                     id: track.id,
                     name: track.name,
                     artist: track.artists.map(a => a.name).join(', '),
                     albumCover: track.album.images[0]?.url || 'https://via.placeholder.com/150',
-                    uri: track.uri
+                    uri: track.uri,
+                    weight: 0.7  // Medium-term weight
                 }));
 
-                console.log(`Fetched ${tracks.length} tracks for user: ${user.displayName}`);
-                allTracks.push(...tracks);
-            } catch (error) {
-                const status = error.response?.status;
-                
-                // Handle expired tokens
-                if (status === 401) {
-                    console.warn(`Access token expired for user: ${user.displayName}, attempting to refresh...`);
-                    const newToken = await refreshAccessToken(user);
-                    
-                    if (newToken) {
-                        user.accessToken = newToken;
-                        saveUsers(users);
-                        console.log(`Refetched tracks for user: ${user.displayName} after refreshing token.`);
-                    } else {
-                        console.error(`Failed to refresh token for user: ${user.displayName}`);
+                // Fetch top 10 long-term tracks
+                const longTermResponse = await axios.get('https://api.spotify.com/v1/me/top/tracks', {
+                    headers: {
+                        Authorization: `Bearer ${user.accessToken}`
+                    },
+                    params: {
+                        limit: 10,
+                        time_range: 'long_term'
                     }
-                } else {
-                    console.error(`Error fetching top tracks for user ${user.displayName}:`, error.response?.data || error.message);
+                });
+
+                const longTermTracks = longTermResponse.data.items.map(track => ({
+                    id: track.id,
+                    name: track.name,
+                    artist: track.artists.map(a => a.name).join(', '),
+                    albumCover: track.album.images[0]?.url || 'https://via.placeholder.com/150',
+                    uri: track.uri,
+                    weight: 1.0  // Long-term weight
+                }));
+
+                // Combine and shuffle
+                const combinedTracks = [...mediumTermTracks, ...longTermTracks]
+                    .filter((track, index, self) =>
+                        self.findIndex(t => t.id === track.id) === index
+                    );
+
+                console.log(`Fetched ${combinedTracks.length} tracks for user: ${user.displayName}`);
+                userTracks[user.spotifyId] = combinedTracks;
+            } catch (error) {
+                console.error(`Error fetching tracks for user ${user.displayName}:`, error.response?.data || error.message);
+            }
+        }
+
+        // Round-robin distribution
+        const finalTracks = [];
+        let empty = false;
+        while (!empty) {
+            empty = true;
+            for (const userId of Object.keys(userTracks)) {
+                const tracks = userTracks[userId];
+                if (tracks.length > 0) {
+                    finalTracks.push(tracks.shift());
+                    empty = false;
                 }
             }
         }
 
-        // Remove duplicates and shuffle
-        const uniqueTracks = allTracks.filter((track, index, self) =>
-            self.findIndex(t => t.id === track.id) === index
-        );
-        const shuffledTracks = uniqueTracks.sort(() => 0.5 - Math.random());
-
-        console.log(`Created song pool with ${shuffledTracks.length} tracks`);
-        res.json(shuffledTracks);
+        console.log(`Created song pool with ${finalTracks.length} tracks`);
+        res.json(finalTracks);
     } catch (error) {
         console.error('Error creating song pool:', error);
         res.status(500).json({ error: 'Error creating song pool' });
