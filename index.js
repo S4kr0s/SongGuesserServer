@@ -57,11 +57,12 @@ app.get('/login', (req, res) => {
     res.redirect(loginUrl);
 });
 
-// Spotify Callback
 app.get('/callback', async (req, res) => {
     const code = req.query.code;
 
     try {
+        console.log("Received code:", code);
+
         const response = await axios.post('https://accounts.spotify.com/api/token', null, {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -75,6 +76,7 @@ app.get('/callback', async (req, res) => {
         });
 
         const { access_token, refresh_token } = response.data;
+        console.log("Received tokens:", { access_token, refresh_token });
 
         // Get the user profile to save their info
         const userProfile = await axios.get('https://api.spotify.com/v1/me', {
@@ -84,6 +86,7 @@ app.get('/callback', async (req, res) => {
         });
 
         const { id, display_name, images } = userProfile.data;
+        console.log("Received user profile:", { id, display_name, images });
 
         // Save the user to users.json
         let users = [];
@@ -120,9 +123,10 @@ app.get('/callback', async (req, res) => {
         res.redirect(`${process.env.FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
     } catch (error) {
         console.error("Error exchanging code for tokens:", error.response?.data || error.message);
-        res.status(500).send("Error exchanging code for tokens.");
+        res.status(500).send(`Error exchanging code for tokens: ${error.response?.data || error.message}`);
     }
 });
+
 
 // Fetch a user's top tracks
 app.get('/top-tracks/:spotifyId', async (req, res) => {
