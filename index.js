@@ -85,10 +85,10 @@ app.get('/callback', async (req, res) => {
 
         const { id, display_name, images } = userProfile.data;
 
-        // Load existing users
+        // Save the user to users.json
         let users = [];
-        if (fs.existsSync(USERS_FILE)) {
-            users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+        if (fs.existsSync('./users.json')) {
+            users = JSON.parse(fs.readFileSync('./users.json', 'utf8'));
         }
 
         // Check if the user already exists
@@ -114,7 +114,7 @@ app.get('/callback', async (req, res) => {
         }
 
         // Save the updated user list
-        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+        fs.writeFileSync('./users.json', JSON.stringify(users, null, 2));
 
         // Redirect to frontend
         res.redirect(`${process.env.FRONTEND_URI}/dashboard?accessToken=${access_token}&refreshToken=${refresh_token}`);
